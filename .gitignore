@@ -5,3 +5,5 @@ target/
 .vscode/
 .bloop/
 .metals/
+example.mv.db
+example.trace.db

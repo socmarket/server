@@ -16,7 +16,7 @@ ThisBuild / axisVersion := Version.getVersion(
   git.gitDescribedVersion.value,
   git.gitUncommittedChanges.value,
   axisBranch.value,
-  axisCommit.value
+  axisCommit.value,
 )
 
 ThisBuild / version      := axisVersion.value
