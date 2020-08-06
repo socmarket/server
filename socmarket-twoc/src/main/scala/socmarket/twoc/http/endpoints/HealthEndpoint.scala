@@ -1,24 +1,25 @@
 package socmarket.twoc.http.endpoints
 
+import socmarket.twoc.api.health.HealthCheckRes
+
+import cats.{Defer, Monad}
+import io.circe.syntax._
 import org.http4s.HttpRoutes
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.Router
-import zio.interop.catz._
-import zio.RIO
 
-final class HealthEndpoint[R] {
-  type HealthTask[A] = RIO[R, A]
+final class HealthEndpoint[F[_]: Monad : Defer](
+) {
 
-  private val prefixPath = "/health"
+  val dsl: Http4sDsl[F] = Http4sDsl[F]
 
-  val dsl: Http4sDsl[HealthTask] = Http4sDsl[HealthTask]
   import dsl._
+  import org.http4s.circe.CirceEntityDecoder._
 
-  private val httpRoutes = HttpRoutes.of[HealthTask] {
-    case GET -> Root => Ok("OK")
+  private val router = HttpRoutes.of[F] {
+    case GET -> Root / "check" =>
+      Ok(HealthCheckRes(data = "HEALTH OK", apiVersion="0.0.1-beta.9").asJson)
   }
 
-  val routes: HttpRoutes[HealthTask] = Router(
-    prefixPath -> httpRoutes
-  )
+  val routes: HttpRoutes[F] = Router("health" -> router)
 }
