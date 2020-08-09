@@ -11,6 +11,8 @@ object Deps {
 
   object V {
     val catsEffect     = "2.2.0-RC3"
+    val fs2            = "2.4.2"
+    val skunk          = "0.0.15"
     val http4s         = "0.21.6"
     val circe          = "0.13.0"
     val circeConfig    = "0.8.0"
@@ -21,11 +23,16 @@ object Deps {
   }
 
   object Lib {
-    def cats(artifact: String)    : ModuleID = "org.typelevel"  %% artifact % V.catsEffect
-    def circe(artifact: String)   : ModuleID = "io.circe"       %% artifact % V.circe
-    def http4s(artifact: String)  : ModuleID = "org.http4s"     %% artifact % V.http4s
-    def doobie(artifact: String)  : ModuleID = "org.tpolecat"   %% ("doobie-" + artifact) % V.doobie
-    def logstage(artifact: String): ModuleID = "io.7mind.izumi" %% artifact % V.logstage
+    def fs2(artifact: String)        : ModuleID = "co.fs2"         %% ("fs2-" + artifact) % V.fs2
+    def circe(artifact: String)      : ModuleID = "io.circe"       %% artifact % V.circe
+    def http4s(artifact: String)     : ModuleID = "org.http4s"     %% artifact % V.http4s
+    def doobie(artifact: String)     : ModuleID = "org.tpolecat"   %% ("doobie-" + artifact) % V.doobie
+    def logstage(artifact: String)   : ModuleID = "io.7mind.izumi" %% artifact % V.logstage
+
+    val catsEffect   = "org.typelevel" %% "cats-effect" % V.catsEffect
+
+    val fs2Core      = fs2("core")
+    val fs2io        = fs2("io")
 
     val http4sServer = http4s("http4s-blaze-server")
     val http4sDsl    = http4s("http4s-dsl")
@@ -43,6 +50,8 @@ object Deps {
     val doobiePg     = doobie("postgres")
     val doobieHikari = doobie("hikari")
 
+    val skunk = "org.tpolecat" %% "skunk-core" % "0.0.15"
+
     val pureConfig = "com.github.pureconfig" %% "pureconfig" % V.pureConfig
 
     val logstageCore      = logstage("logstage-core")
@@ -55,6 +64,9 @@ object Deps {
   )
 
   lazy val twoc = core ++ Seq(
+    Lib.catsEffect,
+    Lib.fs2Core,
+    Lib.fs2io,
     Lib.http4sServer,
     Lib.http4sDsl,
     Lib.http4sClient,
@@ -67,6 +79,7 @@ object Deps {
     Lib.doobieCore,
     Lib.doobiePg,
     Lib.doobieHikari,
+    Lib.skunk,
     Lib.logback,
     Lib.logstageCore,
     Lib.logstageSlf4jSink,

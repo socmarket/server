@@ -20,11 +20,12 @@ object Application extends IOApp {
       smConf <- Resource.liftF(parser.decodePathF[F, Conf]("socmarket"))
       httpSp <- ExecutionContexts.cachedThreadPool[F]
       httpCp <- ExecutionContexts.cachedThreadPool[F]
-      connEc <- ExecutionContexts.fixedThreadPool[F](smConf.db.connections.poolSize)
+      connEc <- ExecutionContexts.fixedThreadPool[F](smConf.db.pool.max)
       tranEc <- ExecutionContexts.cachedThreadPool[F]
+      skunkP <- DbConf.createSkunkSession(smConf.db)
       tx <- DbConf.createTransactor(smConf.db, connEc, Blocker.liftExecutionContext(tranEc))
       _  <- Resource.liftF(Migration.migrate(tx))
-      authCodeRepo <- db.repo.AuthCode.createRepo(tx, smConf)
+      authCodeRepo <- db.repo.AuthCode.createRepo(skunkP, smConf)
       httpClient <- Client.create(smConf.http.client, httpCp)
       nexmo      <- Nexmo.createService(httpClient, smConf.nexmo)
       authCodeService <- service.AuthCode.createService(authCodeRepo, nexmo)
