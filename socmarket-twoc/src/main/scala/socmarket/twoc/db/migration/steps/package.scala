@@ -15,6 +15,7 @@ package object steps {
   def diff(lastKey: String): List[ConnectionIO[Unit]] = {
     List[Step](
       steps.m20200806Init,
+      steps.m20200807CreateUtcNow,
     ).filter(_.key > lastKey).map(mkStep)
   }
 

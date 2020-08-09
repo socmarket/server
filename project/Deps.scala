@@ -34,6 +34,7 @@ object Deps {
 
     val circeCore    = circe("circe-core")
     val circeGeneric = circe("circe-generic")
+    val circeGExtras = circe("circe-generic-extras")
     val circeParser  = circe("circe-parser")
     val circeConfig  = "io.circe" %% "circe-config" % V.circeConfig
 
@@ -59,9 +60,10 @@ object Deps {
     Lib.http4sClient,
     Lib.http4sCirce,
     Lib.circeCore,
-    Lib.circeGeneric,
     Lib.circeParser,
     Lib.circeConfig,
+    Lib.circeGeneric,
+    Lib.circeGExtras,
     Lib.doobieCore,
     Lib.doobiePg,
     Lib.doobieHikari,
