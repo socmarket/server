@@ -61,13 +61,13 @@ object Server {
           case e: ApiErrorLimitExceeded =>
             OptionT(Forbidden(e.copy(msg = "limit exceeded").asJson).map(Some(_)))
           case e: ApiErrorExternal =>
-            OptionT(InternalServerError(ApiErrorUnknown()).map(Some(_)))
+            OptionT(InternalServerError(ApiErrorUnknown().asJson).map(Some(_)))
           case e: ApiError =>
-            OptionT(InternalServerError(ApiErrorUnknown(e.msg)).map(Some(_)))
+            OptionT(InternalServerError(ApiErrorUnknown(e.msg).asJson).map(Some(_)))
           case e: Exception =>
-            OptionT(InternalServerError(ApiErrorUnknown(e.getMessage)).map(Some(_)))
+            OptionT(InternalServerError(ApiErrorUnknown(e.getMessage).asJson).map(Some(_)))
           case e: Throwable =>
-            OptionT(InternalServerError(ApiErrorUnknown(e.getMessage)).map(Some(_)))
+            OptionT(InternalServerError(ApiErrorUnknown(e.getMessage).asJson).map(Some(_)))
         }
     }
   }

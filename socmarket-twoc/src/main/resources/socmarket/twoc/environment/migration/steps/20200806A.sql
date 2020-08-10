@@ -16,9 +16,31 @@ create table auth_code(
   code         varchar,
   provider     varchar,
   handle       varchar,
-  status       int default 0,
+  status       integer default 0,
   sent_at      timestamp without time zone default (now() at time zone 'utc'),
-  finished_at  timestamp without time zone
+  delivered_at timestamp without time zone,
+  verified_at  timestamp without time zone,
+  failed_at    timestamp without time zone
 );
 
-create index auth_code_msisdn_idx on auth_code(msisdn);
+create index auth_code_msisdn_idx on auth_code(msisdn, code);
+
+create table auth_token(
+  id           serial primary key,
+  msisdn       bigint not null,
+  token        varchar,
+  is_valid     boolean default true,
+  given_at     timestamp without time zone default (now() at time zone 'utc'),
+  last_used_at timestamp without time zone default (now() at time zone 'utc')
+);
+
+create index auth_token_token_msisdn on auth_token(token, msisdn);
+
+create table business(
+  id serial primary key,
+  msisdn     bigint,
+  first_name varchar,
+  last_name  varchar,
+  company    varchar,
+  unique (msisdn)
+);

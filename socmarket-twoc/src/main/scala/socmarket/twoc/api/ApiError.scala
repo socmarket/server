@@ -13,6 +13,7 @@ sealed trait ApiError {
 final case class ApiErrorUnknown(msg: String = "Unknown error", code: Int = 1) extends Exception with ApiError
 final case class ApiErrorExternal(msg: String = "", code: Int = 2) extends Exception with ApiError
 final case class ApiErrorLimitExceeded(msg: String = "Limit Exceeded", code: Int = 3) extends Exception with ApiError
+final case class ApiErrorAuthFailed(msg: String = "Authentication failed", code: Int = 4) extends Exception with ApiError
 
 object ApiErrorUnknown {
   implicit val encoder: Encoder[ApiErrorUnknown] = deriveEncoder
@@ -26,10 +27,15 @@ object ApiErrorLimitExceeded {
   implicit val encoder: Encoder[ApiErrorLimitExceeded] = deriveEncoder
 }
 
+object ApiErrorAuthFailed {
+  implicit val encoder: Encoder[ApiErrorAuthFailed] = deriveEncoder
+}
+
 object ApiError {
   implicit val errorEncoder: Encoder[ApiError] = {
     case e: ApiErrorUnknown       => e.asJson
     case e: ApiErrorExternal      => e.asJson
     case e: ApiErrorLimitExceeded => e.asJson
+    case e: ApiErrorAuthFailed    => e.asJson
   }
 }

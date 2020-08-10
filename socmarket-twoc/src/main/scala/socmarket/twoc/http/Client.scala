@@ -16,5 +16,4 @@ object Client {
   ): Resource[F, Http4sClient[F]] = {
     BlazeClientBuilder[F](ec).resource
   }
-
 }

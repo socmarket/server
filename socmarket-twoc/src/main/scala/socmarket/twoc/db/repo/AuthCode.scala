@@ -1,22 +1,26 @@
 package socmarket.twoc.db.repo
 
 import socmarket.twoc.config.Conf
-import socmarket.twoc.api.ApiErrorLimitExceeded
+import socmarket.twoc.api.{ApiErrorAuthFailed, ApiErrorLimitExceeded}
+import socmarket.twoc.adt.auth.{AuthCodeInfo, AuthCodeSendInfo}
+
 import logstage.LogIO
-import cats.effect.{ConcurrentEffect, Resource}
-import doobie.{Query0, Transactor}
+import doobie.{Query0, Transactor, Update0}
 import doobie.implicits._
+import cats.effect.{ConcurrentEffect, Resource}
 import cats.syntax.functor._
 import cats.syntax.flatMap._
-import socmarket.twoc.adt.auth.AuthCodeInfo
+import cats.syntax.applicativeError._
 
 object AuthCode {
 
   trait Repo[F[_]] {
     def genCode(req: AuthCodeInfo): F[String]
     def insertSendCodeReq(req: AuthCodeInfo): F[Unit]
-    def insertSendCodeRes(req: AuthCodeInfo, handle: String): F[Unit]
+    def insertSendCodeRes(req: AuthCodeSendInfo): F[Unit]
     def ensureCanSendCode(req: AuthCodeInfo): F[Unit]
+    def verifyAndGenToken(msisdn: Long, code: String): F[String]
+    def updateToken(token: String): F[Unit]
   }
 
   def createRepo[F[_]: ConcurrentEffect: LogIO](tx: Transactor[F], conf: Conf): Resource[F, Repo[F]] =
@@ -34,13 +38,11 @@ object AuthCode {
     }
 
     def insertSendCodeReq(req: AuthCodeInfo): F[Unit] = {
-      for {
-        _ <- insertSendCodeReqSql(req).unique.transact(tx)
-      } yield ()
+      insertSendCodeReqSql(req).run.transact(tx).void
     }
 
-    override def insertSendCodeRes(req: AuthCodeInfo, handle: String): F[Unit] = {
-      ???
+    def insertSendCodeRes(sendInfo: AuthCodeSendInfo): F[Unit] = {
+      insertSendCodeResSql(sendInfo).run.transact(tx).void
     }
 
     def ensureCanSendCode(req: AuthCodeInfo): F[Unit] = {
@@ -55,38 +57,94 @@ object AuthCode {
         _        <- F.ensure(F.unit)(ApiErrorLimitExceeded("msisdn interval"))(cond3)
       } yield ()
     }
+
+    def verifyAndGenToken(msisdn: Long, code: String): F[String] = {
+      for {
+        _     <- codeIsValidSql(msisdn, code).unique.transact(tx)
+                   .ifM(F.unit, ApiErrorAuthFailed().raiseError[F, Unit])
+        _     <- verifyCode(msisdn, code).run.transact(tx)
+        token <- genToken(msisdn)
+      } yield token
+    }
+
+    def updateToken(token: String): F[Unit] = {
+      for {
+        _ <- updateTokenSql(token).run.transact(tx)
+      } yield ()
+    }
+
+    private def genToken(msisdn: Long): F[String] = {
+      for {
+        token <- F.delay(R.nextString(conf.api.auth.tokenLen))
+        _     <- insertToken(msisdn, token).run.transact(tx)
+      } yield token
+    }
   }
 
   private
-  def insertSendCodeReqSql(req: AuthCodeInfo): Query0[Int] = fr"""
+  def insertSendCodeReqSql(req: AuthCodeInfo): Update0 = fr"""
     insert into auth_code_req(msisdn, captcha, ip, user_agent, fingerprint)
     values(${req.req.msisdn}, ${req.req.captcha}, ${req.ip}, ${req.userAgent}, ${req.req.fingerprint})
-    returing id
+  """.update
+
+  private
+  def insertSendCodeResSql(sendInfo: AuthCodeSendInfo): Update0 = fr"""
+    insert into auth_code(msisdn, code, provider, handle)
+    values(
+      ${sendInfo.info.req.msisdn},
+      ${sendInfo.code},
+      ${sendInfo.provider},
+      ${sendInfo.handle}
+    )
+  """.update
+
+  private
+  def sentCodesCountByIpSql(ip: String): Query0[Int] = fr"""
+    select
+      coalesce(count(id), 0) as cnt
+    from auth_code
+    where
+      sent_at >= (utcnow() - interval '1 hours')
   """.query[Int]
 
   private
-  def insertSendCodeResSql(req: AuthCodeInfo, handle: String, provider: String, code: String): Query0[Int] = fr"""
-    insert into auth_code(msisdn, code, provider)
-    values(${req.req.msisdn}, ${req.req.captcha}, ${req.ip}, ${req.userAgent}, ${req.req.fingerprint})
-    returing id
-  """.query[Int]
-
-  private def sentCodesCountByIpSql(ip: String): Query0[Int] = fr"""
-    select
-      coalesce(count(id), 0) as cnt
-    from auth_code_req
-    where
-      requested_at >= (utcnow() - interval '1 hours') and ip = $ip
-  """.query[Int]
-
-  private def sentCodesCountByMsisdnSql(msisdn: Long): Query0[(Int, Int)] = fr"""
+  def sentCodesCountByMsisdnSql(msisdn: Long): Query0[(Int, Int)] = fr"""
     select
       coalesce(count(id), 0) as cnt,
-      coalesce(round(extract(epoch from utcnow() - max(requested_at)) / 60)::integer, 1000)
+      coalesce(round(extract(epoch from utcnow() - max(sent_at)) / 60)::integer, 1000)
         as minutesSinceLast
-    from auth_code_req
+    from auth_code
     where
-      requested_at >= (utcnow() - interval '1 hours') and msisdn = $msisdn
+      sent_at >= (utcnow() - interval '1 hours') and msisdn = $msisdn
   """.query[(Int, Int)]
+
+  private
+  def codeIsValidSql(msisdn: Long, code: String): Query0[Boolean] = fr"""
+    select
+      coalesce(count(id), 0) > 0
+    from auth_code
+    where
+      sent_at >= (utcnow() - interval '5 minutes')
+      and msisdn = $msisdn
+      and code   = $code
+      and verified_at is null
+      and id in (select max(id) from auth_code where msisdn = $msisdn and code = $code)
+  """.query[Boolean]
+
+  private
+  def verifyCode(msisdn: Long, code: String): Update0 = fr"""
+    update auth_code set verified_at = utcnow() where msisdn = $msisdn and code = $code
+  """.update
+
+  private
+  def insertToken(msisdn: Long, token: String): Update0 = fr"""
+    insert into auth_token(msisdn, token) values($msisdn, $token)
+  """.update
+
+  private
+  def updateTokenSql(token: String): Update0 = fr"""
+    update auth_token set last_used_at = utcnow()
+    where token = $token
+  """.update
 
 }

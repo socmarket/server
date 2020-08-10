@@ -1,8 +1,11 @@
 package socmarket.twoc.service
 
 import socmarket.twoc.db.{repo => db}
-import socmarket.twoc.api.ApiErrorLimitExceeded
+import socmarket.twoc.api.{ApiErrorAuthFailed, ApiErrorLimitExceeded}
 import socmarket.twoc.ext.Nexmo
+import socmarket.twoc.adt.auth.{AuthCodeInfo, AuthCodeSendInfo, AuthToken}
+import socmarket.twoc.api.auth.AuthCodeVerifyReq
+
 import cats.effect.{ConcurrentEffect, Resource}
 import cats.effect.syntax.bracket._
 import cats.syntax.functor._
@@ -10,13 +13,12 @@ import cats.syntax.flatMap._
 import cats.syntax.applicativeError._
 import logstage.LogIO
 import logstage.LogIO.log
-import socmarket.twoc.adt.auth.AuthCodeInfo
 
 object AuthCode {
 
   trait Service[F[_]] {
     def sendCode(req: AuthCodeInfo): F[Unit]
-    def verifyReg(code: String): F[Unit]
+    def verify(req: AuthCodeVerifyReq): F[AuthToken]
   }
 
   def createService[F[_]: ConcurrentEffect: LogIO](
@@ -30,24 +32,28 @@ object AuthCode {
     nexmo: Nexmo.Service[F]
   ): Service[F] = new Service[F] {
 
+    private val F = implicitly[ConcurrentEffect[F]]
+
     def sendCode(req: AuthCodeInfo): F[Unit] = {
       val action = for {
-        _    <- authCodeRepo
-                  .ensureCanSendCode(req)
-                  .guarantee(authCodeRepo.insertSendCodeReq(req))
-        code <- authCodeRepo.genCode(req)
-        _    <- nexmo.sendSms(req.req.msisdn, s"SocMarket: $code")
+        _     <- authCodeRepo
+                   .ensureCanSendCode(req)
+                   .guarantee(authCodeRepo.insertSendCodeReq(req))
+        code  <- authCodeRepo.genCode(req)
+        msg   <- nexmo.sendSms(req.req.msisdn, s"SocMarket: $code")
+        _     <- authCodeRepo.insertSendCodeRes(AuthCodeSendInfo(req, code, msg.messageId, "nexmo"))
       } yield ()
       action
         .onError {
           case ApiErrorLimitExceeded(msg, _) =>
             log.warn(s"Send code blocked for ${req.ip} ${req.req.msisdn} reason $msg")
         }
-        .void
     }
 
-    override def verifyReg(code: String): F[Unit] = {
-      ???
+    def verify(req: AuthCodeVerifyReq): F[AuthToken] = {
+      authCodeRepo
+        .verifyAndGenToken(req.msisdn, req.code)
+        .map(token => AuthToken(req.msisdn, token))
     }
   }
 }

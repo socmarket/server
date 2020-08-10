@@ -1,15 +1,17 @@
 package socmarket.twoc.http.endpoints
 
 import socmarket.twoc.{service => sv}
-import socmarket.twoc.api.auth.AuthCodeReq
+import socmarket.twoc.api.auth.{AuthCodeReq, AuthCodeVerifyReq}
+import socmarket.twoc.adt.auth.AuthCodeInfo
+
 import cats.effect.Sync
 import cats.syntax.functor._
 import cats.syntax.flatMap._
+import io.circe.syntax._
 import org.http4s.HttpRoutes
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.`User-Agent`
 import org.http4s.server.Router
-import socmarket.twoc.adt.auth.AuthCodeInfo
 
 final class AuthEndpoint[F[_]: Sync](
   authCodeSv: sv.AuthCode.Service[F]
@@ -29,6 +31,13 @@ final class AuthEndpoint[F[_]: Sync](
         ua           = req.headers.get(`User-Agent`).fold("")(_.value)
         _           <- authCodeSv.sendCode(AuthCodeInfo(authCodeReq, ip, ua))
         res         <- Ok("OK")
+      } yield res
+
+    case req @ POST -> Root / "verify" =>
+      for {
+        authCodeVerifyReq <- req.as[AuthCodeVerifyReq]
+        authToken         <- authCodeSv.verify(authCodeVerifyReq)
+        res               <- Ok(authToken.asJson)
       } yield res
   }
 

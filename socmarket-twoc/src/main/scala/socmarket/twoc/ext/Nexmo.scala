@@ -67,7 +67,19 @@ object Nexmo {
       )
       for {
         url <- F.delay(Uri.unsafeFromString(conf.sendSmsUrl))
-        res <- http.expect[SendSmsRes](POST.apply(data, url))
+        // res <- http.expect[SendSmsRes](POST.apply(data, url))
+        _   <- log.debug(s"SMS send request to Nexmo: $text")
+        res <- F.delay(SendSmsRes(
+          messageCount = 1,
+          messages = List(NexmoMessage(
+            to               = "",
+            messageId        = scala.util.Random.nextString(6),
+            status           = "0",
+            remainingBalance = "",
+            messagePrice     = "",
+            network          = "",
+          ))
+        ))
         msg <- F.fromOption(res.messages.headOption, ApiErrorExternal("Nexmo returned empty messages list"))
       } yield msg
     }
