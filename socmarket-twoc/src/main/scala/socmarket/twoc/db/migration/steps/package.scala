@@ -16,6 +16,7 @@ package object steps {
     List[Step](
       steps.m20200806Init,
       steps.m20200807CreateUtcNow,
+      steps.m20200831CreateWorkTables,
     ).filter(_.key > lastKey).map(mkStep)
   }
 

@@ -1,4 +1,4 @@
-create table auth_code_req(
+create table auth_code_req (
   id           serial primary key,
   msisdn       bigint not null,
   captcha      varchar,
@@ -10,7 +10,7 @@ create table auth_code_req(
 
 create index auth_code_req_msisdn_idx on auth_code_req(msisdn);
 
-create table auth_code(
+create table auth_code (
   id           serial primary key,
   msisdn       bigint not null,
   code         varchar,
@@ -25,7 +25,7 @@ create table auth_code(
 
 create index auth_code_msisdn_idx on auth_code(msisdn, code);
 
-create table auth_token(
+create table auth_token (
   id           serial primary key,
   msisdn       bigint not null,
   token        varchar,
@@ -36,11 +36,9 @@ create table auth_token(
 
 create index auth_token_token_msisdn on auth_token(token, msisdn);
 
-create table business(
-  id serial primary key,
+create table account (
+  id serial  primary key,
   msisdn     bigint,
-  first_name varchar,
-  last_name  varchar,
-  company    varchar,
+  created_at timestamp without time zone default (now() at time zone 'utc'),
   unique (msisdn)
 );

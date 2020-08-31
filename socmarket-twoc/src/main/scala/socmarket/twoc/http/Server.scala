@@ -3,6 +3,7 @@ package socmarket.twoc.http
 import socmarket.twoc.config.HttpConf
 import socmarket.twoc.http.endpoints.{AuthEndpoint, HealthEndpoint}
 import socmarket.twoc.{service => sv}
+import socmarket.twoc.api
 import socmarket.twoc.api.{ApiError, ApiErrorExternal, ApiErrorLimitExceeded, ApiErrorUnknown}
 import io.circe.syntax._
 import cats.effect.{ConcurrentEffect, Resource, Timer}
@@ -21,6 +22,8 @@ import org.http4s.server.Router
 import org.http4s.server.middleware.CORS.DefaultCORSConfig
 import org.http4s.server.middleware.{AutoSlash, CORS, GZip, RequestLogger, Timeout}
 import org.http4s.server.{Server => Http4sServer}
+import tsec.authentication.{JWTAuthenticator, SecuredRequestHandler}
+import tsec.mac.jca.HMACSHA256
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
