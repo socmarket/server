@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class AuthCodeSpec
+class AuthSpec
   extends AnyFunSuite
     with Matchers
     with ScalaCheckPropertyChecks {
