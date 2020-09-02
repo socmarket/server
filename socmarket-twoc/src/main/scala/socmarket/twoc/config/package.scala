@@ -13,4 +13,5 @@ package object config {
   implicit val apiConfDecoder: Decoder[ApiConf] = deriveDecoder
   implicit val apiConfAuthDecoder: Decoder[ApiConfAuth] = deriveDecoder
   implicit val nexmoConfDecoder: Decoder[NexmoConf] = deriveDecoder
+  implicit val smsProConfDecoder: Decoder[SmsProConf] = deriveDecoder
 }

@@ -32,7 +32,7 @@ object AuthEndpoint {
           res         <- Ok("OK")
         } yield res
 
-      case req @ POST -> Root / "verify" =>
+      case req @ POST -> Root / "verifyCode" =>
         for {
           authCodeVerifyReq <- req.as[AuthCodeVerifyReq]
           authToken         <- authService.verifyCode(authCodeVerifyReq)

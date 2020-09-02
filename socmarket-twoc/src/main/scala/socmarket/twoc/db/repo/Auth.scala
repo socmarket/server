@@ -16,7 +16,7 @@ object Auth {
 
   trait Repo[F[_]] {
     def genCode(req: AuthCodeInfo): F[String]
-    def insertSendCodeReq(req: AuthCodeInfo): F[Unit]
+    def insertSendCodeReq(req: AuthCodeInfo): F[Int]
     def insertSendCodeRes(req: AuthCodeSendInfo): F[Unit]
     def ensureCanSendCode(req: AuthCodeInfo): F[Unit]
     def verifyCodeAndGenToken(msisdn: Long, code: String): F[String]
@@ -39,8 +39,10 @@ object Auth {
       F.delay(R.nextInt(codeMax).toString.padTo(conf.api.auth.codeLen, '0'))
     }
 
-    def insertSendCodeReq(req: AuthCodeInfo): F[Unit] = {
-      insertSendCodeReqSql(req).run.transact(tx).void
+    def insertSendCodeReq(req: AuthCodeInfo): F[Int] = {
+      insertSendCodeReqSql(req)
+        .withUniqueGeneratedKeys[Int]("id")
+        .transact(tx)
     }
 
     def insertSendCodeRes(sendInfo: AuthCodeSendInfo): F[Unit] = {
@@ -88,7 +90,7 @@ object Auth {
 
     private def genToken(msisdn: Long): F[String] = {
       for {
-        token <- F.delay(R.nextString(conf.api.auth.tokenLen))
+        token <- F.delay(R.alphanumeric.take(conf.api.auth.tokenLen).mkString)
         _     <- insertToken(msisdn, token).run.transact(tx)
       } yield token
     }
@@ -98,6 +100,7 @@ object Auth {
   def insertSendCodeReqSql(req: AuthCodeInfo): Update0 = fr"""
     insert into auth_code_req(msisdn, captcha, ip, user_agent, fingerprint)
     values(${req.req.msisdn}, ${req.req.captcha}, ${req.ip}, ${req.userAgent}, ${req.req.fingerprint})
+    returning id
   """.update
 
   private
@@ -117,7 +120,7 @@ object Auth {
       coalesce(count(id), 0) as cnt
     from auth_code
     where
-      ip = $ip and sent_at >= (utcnow() - interval '1 hours')
+      sent_at >= (utcnow() - interval '1 hours')
   """.query[Int]
 
   private

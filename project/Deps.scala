@@ -23,6 +23,7 @@ object Deps {
     val scalaTest      = "3.2.0"
     val scalaTestP     = "3.2.0.0"
     val tsec           = "0.2.1"
+    val phobosXml      = "0.8.2"
   }
 
   object Lib {
@@ -57,7 +58,8 @@ object Deps {
     val logstageSlf4jSink = logstage("logstage-sink-slf4j")
     val logback           = "ch.qos.logback" % "logback-classic" % V.logback
 
-    val uaParser = "nl.basjes.parse.useragent" % "yauaa" % V.uaParser
+    val phobosXml = "ru.tinkoff" %% "phobos-core" % V.phobosXml
+    val uaParser  = "nl.basjes.parse.useragent" % "yauaa" % V.uaParser
 
     val scalaCheck = "org.scalacheck" %% "scalacheck" % V.scalaCheck % Test
     val scalaTest  = "org.scalatest" %% "scalatest" % V.scalaTest % Test
@@ -94,6 +96,7 @@ object Deps {
     Lib.logback,
     Lib.logstageCore,
     Lib.logstageSlf4jSink,
+    Lib.phobosXml,
     Lib.uaParser,
 
     Lib.tsecCommon,

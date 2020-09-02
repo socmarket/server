@@ -3,7 +3,7 @@ package socmarket.twoc
 import socmarket.twoc.config._
 import socmarket.twoc.db.migration.Migration
 import socmarket.twoc.http.{Client, Server}
-import socmarket.twoc.ext.Nexmo
+import socmarket.twoc.ext.{Nexmo, SmsPro}
 import logstage.{IzLogger, LogIO}
 import cats.effect._
 import io.circe.config.parser
@@ -23,11 +23,14 @@ object Application extends IOApp {
       tranEc <- ExecutionContexts.cachedThreadPool[F]
       tx <- DbConf.createTransactor(smConf.db, connEc, Blocker.liftExecutionContext(tranEc))
       _  <- Resource.liftF(Migration.migrate(tx))
-      httpClient  <- Client.create(smConf.http.client, httpCp)
-      nexmo       <- Nexmo.createService(httpClient, smConf.nexmo)
-      authRepo    <- db.repo.Auth.createRepo(tx, smConf)
-      authService <- service.Auth.createService(authRepo, nexmo)
-      httpServer  <- Server.create(smConf.http, httpSp, authService)
+      httpClient   <- Client.create(smConf.http.client, httpCp)
+      nexmo        <- Nexmo.createService(httpClient, smConf.nexmo)
+      smsPro       <- SmsPro.createService(httpClient, smConf.smsPro)
+      authRepo     <- db.repo.Auth.createRepo(tx, smConf)
+      dsyncRepo    <- db.repo.DataSync.createRepo(tx, smConf)
+      authService  <- service.Auth.createService(authRepo, nexmo, smsPro)
+      dsyncService <- service.DataSync.createService(dsyncRepo)
+      httpServer   <- Server.create(smConf.http, httpSp, authService, dsyncService)
     } yield httpServer
   }
 

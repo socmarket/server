@@ -2,7 +2,7 @@ package socmarket.twoc.service
 
 import socmarket.twoc.db.{repo => db}
 import socmarket.twoc.api.ApiErrorLimitExceeded
-import socmarket.twoc.ext.Nexmo
+import socmarket.twoc.ext.{Nexmo, SmsPro}
 import socmarket.twoc.adt.auth.{Account, AuthCodeInfo, AuthCodeSendInfo, AuthToken}
 import socmarket.twoc.api.auth.AuthCodeVerifyReq
 import cats.effect.{ConcurrentEffect, Resource}
@@ -25,9 +25,10 @@ object Auth {
   def createService[F[_]: ConcurrentEffect: LogIO](
     authRepo: db.Auth.Repo[F],
     nexmo: Nexmo.Service[F],
+    smsPro: SmsPro.Service[F],
   ): Resource[F, Service[F]] = {
     Resource.make(
-      ConcurrentEffect[F].delay(create(authRepo, nexmo))
+      ConcurrentEffect[F].delay(create(authRepo, nexmo, smsPro))
     )(
       _ => ConcurrentEffect[F].delay(())
     )
@@ -35,19 +36,20 @@ object Auth {
 
   private def create[F[_]: ConcurrentEffect : LogIO](
     authRepo: db.Auth.Repo[F],
-    nexmo: Nexmo.Service[F]
+    nexmo: Nexmo.Service[F],
+    smsPro: SmsPro.Service[F],
   ): Service[F] = new Service[F] {
 
     private val F = implicitly[ConcurrentEffect[F]]
 
     def sendCode(req: AuthCodeInfo): F[Unit] = {
       val action = for {
-        _     <- authRepo
-                   .ensureCanSendCode(req)
-                   .guarantee(authRepo.insertSendCodeReq(req))
+        id    <- authRepo.insertSendCodeReq(req)
+        _     <- authRepo.ensureCanSendCode(req)
         code  <- authRepo.genCode(req)
-        msg   <- nexmo.sendSms(req.req.msisdn, s"SocMarket: $code")
-        _     <- authRepo.insertSendCodeRes(AuthCodeSendInfo(req, code, msg.messageId, "nexmo"))
+        // msgId <- smsPro.sendSms(id, req.req.msisdn, s"SocMarket: $code")
+        msgId = id.toString
+        _     <- authRepo.insertSendCodeRes(AuthCodeSendInfo(req, code, msgId, "smspro"))
       } yield ()
       action
         .onError {

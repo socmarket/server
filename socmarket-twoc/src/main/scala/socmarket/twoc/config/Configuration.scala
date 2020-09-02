@@ -6,6 +6,7 @@ import doobie.hikari.HikariTransactor
 import scala.concurrent.ExecutionContext
 
 final case class NexmoConf(sendSmsUrl: String, apiKey: String, apiSecret: String, from: String)
+final case class SmsProConf(sendSmsUrl: String, login: String, pass: String, from: String)
 final case class HttpClientConf(opt: String)
 final case class HttpConf(host: String, port: Int, path: String, timeout: Int, client: HttpClientConf)
 final case class DbPoolConf(poolSize: Int)
@@ -17,7 +18,7 @@ final case class ApiConfLimits(
   maxCodesHourMsisdn: Int,
   minMinutesBetweenCodesMsisdn: Int,
 )
-final case class Conf(db: DbConf, http: HttpConf, api: ApiConf, nexmo: NexmoConf)
+final case class Conf(db: DbConf, http: HttpConf, api: ApiConf, nexmo: NexmoConf, smsPro: SmsProConf)
 
 object DbConf {
 

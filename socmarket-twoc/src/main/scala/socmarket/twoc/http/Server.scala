@@ -4,7 +4,7 @@ import socmarket.twoc.config.HttpConf
 import socmarket.twoc.http.endpoints.{AuthEndpoint, DataSyncEndpoint, HealthEndpoint}
 import socmarket.twoc.{service => sv}
 import socmarket.twoc.api
-import socmarket.twoc.api.{ApiError, ApiErrorExternal, ApiErrorLimitExceeded, ApiErrorUnknown}
+import socmarket.twoc.api.{ApiError, ApiErrorAuthFailed, ApiErrorExternal, ApiErrorLimitExceeded, ApiErrorUnknown}
 import io.circe.syntax._
 import cats.effect.{ConcurrentEffect, Resource, Sync, Timer}
 import cats.data.{Kleisli, OptionT}
@@ -21,7 +21,7 @@ import org.http4s.implicits._
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.{AuthMiddleware, Router, Server => Http4sServer}
 import org.http4s.server.middleware.CORS.DefaultCORSConfig
-import org.http4s.server.middleware.{AutoSlash, CORS, GZip, RequestLogger, Timeout}
+import org.http4s.server.middleware.{AutoSlash, CORS, GZip, Logger, Timeout}
 import socmarket.twoc.adt.auth.Account
 import socmarket.twoc.service.Auth
 
@@ -33,18 +33,19 @@ object Server {
   def create[F[_]: ConcurrentEffect : Timer : LogIO](
     conf: HttpConf,
     ec: ExecutionContext,
-    authService: sv.Auth.Service[F]
+    authService: sv.Auth.Service[F],
+    dsyncService: sv.DataSync.Service[F],
   ): Resource[F, Http4sServer[F]] = {
     val viaAuth = authM(authService)
     val routes = Router(
       "/auth"   -> AuthEndpoint.router[F](authService),
       "/health" -> HealthEndpoint.router[F](),
-      "/sync"   -> DataSyncEndpoint.router[F](viaAuth)
+      "/sync"   -> DataSyncEndpoint.router[F](dsyncService, viaAuth)
     )
     val corsConf = DefaultCORSConfig.copy(allowedMethods = Some(Set("GET", "POST")))
     val mkApp: HttpRoutes[F] => HttpRoutes[F] = { http: HttpRoutes[F] => AutoSlash(http) }
       .andThen(errorHandler[F](_))
-      .andThen(RequestLogger.httpRoutes[F](logHeaders = true, logBody = true))
+      .andThen(Logger.httpRoutes[F](logHeaders = true, logBody = true))
       .andThen(CORS(_, corsConf))
       .andThen(GZip(_))
       .andThen(Timeout(conf.timeout.seconds))
@@ -76,6 +77,8 @@ object Server {
         .handleErrorWith {
           case e: ApiErrorLimitExceeded =>
             OptionT(Forbidden(e.copy(msg = "limit exceeded").asJson).map(Some(_)))
+          case e: ApiErrorAuthFailed =>
+            OptionT(Forbidden(e.copy(msg = "authentication failed").asJson).map(Some(_)))
           case e: ApiErrorExternal =>
             OptionT(InternalServerError(ApiErrorUnknown().asJson).map(Some(_)))
           case e: ApiError =>
