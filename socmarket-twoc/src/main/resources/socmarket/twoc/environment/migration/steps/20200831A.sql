@@ -1,62 +1,64 @@
 create table unit (
   account_id integer,
-  unit_id integer,
+  id integer,
   title varchar,
   notation varchar,
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
   updated_at timestamp without time zone default (now() at time zone 'utc'),
-  unique(account_id, unit_id)
+  unique(account_id, id)
 );
 
 create table currency (
   account_id integer,
-  currency_id integer,
+  id integer,
   title varchar,
   notation varchar,
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
   updated_at timestamp without time zone default (now() at time zone 'utc'),
-  unique(account_id, currency_id)
+  unique(account_id, id)
 );
 
 create table client (
   account_id integer,
-  client_id integer,
+  id integer,
   name varchar,
   contacts varchar,
   notes varchar,
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
   updated_at timestamp without time zone default (now() at time zone 'utc'),
-  unique(account_id, client_id)
+  unique(account_id, id)
 );
 
 create table supplier (
   account_id integer,
-  supplier_id integer,
+  id integer,
   name varchar,
   contacts varchar,
   notes varchar,
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
   updated_at timestamp without time zone default (now() at time zone 'utc'),
-  unique(account_id, supplier_id)
+  unique(account_id, id)
 );
 
 create table category (
   account_id integer,
-  category_id integer,
+  id integer,
   parent_id integer,
   title varchar,
   notes varchar,
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
   updated_at timestamp without time zone default (now() at time zone 'utc'),
-  unique(account_id, category_id)
+  unique(account_id, id)
 );
 
 create table settings (
   account_id integer,
+  id integer,
   key varchar,
   value varchar,
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
   updated_at timestamp without time zone default (now() at time zone 'utc'),
+  unique(account_id, id),
   unique(account_id, key)
 );
 
@@ -70,7 +72,7 @@ create table barcode (
 
 create table product (
   account_id integer,
-  product_id integer,
+  id integer,
   barcode varchar,
   code varchar,
   title varchar,
@@ -85,35 +87,38 @@ create table product (
   coord varchar,
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
   updated_at timestamp without time zone default (now() at time zone 'utc'),
-  unique(account_id, product_id)
+  unique(account_id, id)
 );
 
 create table price (
   account_id integer,
+  id         integer,
   product_id integer,
   currency_id integer,
   price bigint,
   set_at timestamp without time zone default (now() at time zone 'utc'),
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
-  updated_at timestamp without time zone default (now() at time zone 'utc')
+  updated_at timestamp without time zone default (now() at time zone 'utc'),
+  unique (account_id, id)
 );
 
 create table salecheck (
   account_id integer,
-  sale_check_id integer,
+  id integer,
   client_id integer,
   cash bigint,
   change bigint,
+  discount bigint,
   closed boolean,
   sold_at timestamp without time zone default (now() at time zone 'utc'),
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
   updated_at timestamp without time zone default (now() at time zone 'utc'),
-  unique (account_id, sale_check_id)
+  unique (account_id, id)
 );
 
 create table salecheckitem (
   account_id integer,
-  sale_check_item_id integer,
+  id integer,
   sale_check_id integer,
   product_id integer,
   unit_id integer,
@@ -123,23 +128,24 @@ create table salecheckitem (
   price bigint,
   discount bigint,
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
-  updated_at timestamp without time zone default (now() at time zone 'utc')
+  updated_at timestamp without time zone default (now() at time zone 'utc'),
+  unique (account_id, id)
 );
 
 create table consignment (
   account_id integer,
-  consignment_id integer,
+  id integer,
   supplier_id integer,
   closed boolean,
   accepted_at timestamp without time zone default (now() at time zone 'utc'),
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
   updated_at timestamp without time zone default (now() at time zone 'utc'),
-  unique (account_id, consignment_id)
+  unique (account_id, id)
 );
 
 create table consignmentitem (
   account_id integer,
-  consignment_item_id integer,
+  id integer,
   consignment_id integer,
   product_id integer,
   unit_id integer,
@@ -147,7 +153,8 @@ create table consignmentitem (
   quantity bigint,
   price bigint,
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
-  updated_at timestamp without time zone default (now() at time zone 'utc')
+  updated_at timestamp without time zone default (now() at time zone 'utc'),
+  unique (account_id, id)
 );
 
 create table salecheckret (
@@ -157,7 +164,8 @@ create table salecheckret (
   notes varchar,
   returned_at timestamp without time zone default (now() at time zone 'utc'),
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
-  updated_at timestamp without time zone default (now() at time zone 'utc')
+  updated_at timestamp without time zone default (now() at time zone 'utc'),
+  unique (account_id, sale_check_item_id)
 );
 
 create table consignmentret (
@@ -167,5 +175,6 @@ create table consignmentret (
   notes varchar,
   returned_at timestamp without time zone default (now() at time zone 'utc'),
   uploaded_at timestamp without time zone default (now() at time zone 'utc'),
-  updated_at timestamp without time zone default (now() at time zone 'utc')
+  updated_at timestamp without time zone default (now() at time zone 'utc'),
+  unique (account_id, consignment_item_id)
 );

@@ -1,22 +1,22 @@
 package socmarket.twoc.api.sync
 
-import io.circe.{Codec, Decoder}
-import io.circe.generic.semiauto.{deriveCodec, deriveDecoder}
+import io.circe.Decoder
+import io.circe.generic.semiauto.deriveDecoder
 
 case class SyncProductReq(
-  productId  : Int,
+  id         : Int,
   barcode    : String,
-  code       : String,
-  title      : String,
-  notes      : String,
-  unitId     : Int,
-  categoryId : Int,
-  brand      : String,
-  model      : String,
-  engine     : String,
-  oemno      : String,
-  serial     : String,
-  coord      : String,
+  code       : Option[String],
+  title      : Option[String],
+  notes      : Option[String],
+  unitId     : Option[Int],
+  categoryId : Option[Int],
+  brand      : Option[String],
+  model      : Option[String],
+  engine     : Option[String],
+  oemNo      : Option[String],
+  serial     : Option[String],
+  coord      : Option[String],
 )
 
 object SyncProductReq {

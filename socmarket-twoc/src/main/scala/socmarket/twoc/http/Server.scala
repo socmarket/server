@@ -3,27 +3,28 @@ package socmarket.twoc.http
 import socmarket.twoc.config.HttpConf
 import socmarket.twoc.http.endpoints.{AuthEndpoint, DataSyncEndpoint, HealthEndpoint}
 import socmarket.twoc.{service => sv}
-import socmarket.twoc.api
 import socmarket.twoc.api.{ApiError, ApiErrorAuthFailed, ApiErrorExternal, ApiErrorLimitExceeded, ApiErrorUnknown}
+import socmarket.twoc.adt.auth.Account
+import socmarket.twoc.service.Auth
+
 import io.circe.syntax._
 import cats.effect.{ConcurrentEffect, Resource, Sync, Timer}
 import cats.data.{Kleisli, OptionT}
-import cats.data.Kleisli._
 import cats.implicits.catsSyntaxApplicativeError
+import cats.syntax.apply._
 import cats.syntax.functor._
-import cats.syntax.semigroupk._
-import cats.syntax.applicativeError._
+import cats.syntax.traverse._
+import cats.instances.option._
 import logstage.LogIO
+import logstage.LogIO.log
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.Authorization
-import org.http4s.{HttpRoutes, Request}
+import org.http4s.{AuthScheme, Credentials, HttpRoutes, Request}
 import org.http4s.implicits._
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.{AuthMiddleware, Router, Server => Http4sServer}
 import org.http4s.server.middleware.CORS.DefaultCORSConfig
 import org.http4s.server.middleware.{AutoSlash, CORS, GZip, Logger, Timeout}
-import socmarket.twoc.adt.auth.Account
-import socmarket.twoc.service.Auth
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
@@ -56,13 +57,16 @@ object Server {
       .resource
   }
 
-  private def authM[F[_] : Sync](authService: Auth.Service[F]): AuthMiddleware[F, Account] = {
+  private def authM[F[_] : Sync: LogIO](authService: Auth.Service[F]): AuthMiddleware[F, Account] = {
     val authUser: Kleisli[OptionT[F, *], Request[F], Account] = Kleisli { req =>
-      val token = req.headers
-        .get(Authorization)
-        .map(_.value)
-        .getOrElse("")
-      OptionT(authService.verifyToken(token).map(Some(_)))
+      val token = req.headers.get(Authorization).flatMap { t =>
+        t.credentials match {
+          case Credentials.Token(scheme, token) if scheme == AuthScheme.Bearer =>
+            Some(token)
+          case _ => None
+        }
+      }
+      OptionT(token.traverse(authService.verifyToken))
     }
     AuthMiddleware(authUser)
   }
@@ -84,7 +88,10 @@ object Server {
           case e: ApiError =>
             OptionT(InternalServerError(ApiErrorUnknown(e.msg).asJson).map(Some(_)))
           case e: Exception =>
-            OptionT(InternalServerError(ApiErrorUnknown(e.getMessage).asJson).map(Some(_)))
+            OptionT(
+              log.error(s"Unexpected exception: $e") *>
+                InternalServerError(ApiErrorUnknown(e.getMessage).asJson).map(Some(_))
+            )
           case e: Throwable =>
             OptionT(InternalServerError(ApiErrorUnknown(e.getMessage).asJson).map(Some(_)))
         }
